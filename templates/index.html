@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI过程数据分析工具</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; }
+  .header { background: linear-gradient(135deg, #1a3a5c, #2d6aa0); color: #fff; padding: 24px 32px; text-align: center; }
+  .header h1 { font-size: 24px; margin-bottom: 6px; }
+  .header p { font-size: 14px; opacity: 0.85; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+  .card { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .card h2 { font-size: 18px; color: #1a3a5c; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid #e8ecf0; }
+
+  /* 上传区 */
+  .upload-modes { display: flex; gap: 16px; flex-wrap: wrap; }
+  .upload-zone { flex: 1; min-width: 280px; border: 2px dashed #c0c8d0; border-radius: 10px; padding: 30px 20px; text-align: center; cursor: pointer; transition: all 0.3s; }
+  .upload-zone:hover, .upload-zone.drag { border-color: #2d6aa0; background: #f0f5fa; }
+  .upload-zone .icon { font-size: 36px; margin-bottom: 8px; }
+  .upload-zone .title { font-size: 15px; font-weight: 600; color: #1a3a5c; margin-bottom: 4px; }
+  .upload-zone .text { font-size: 13px; color: #666; }
+  .upload-zone .hint { font-size: 11px; color: #999; margin-top: 6px; }
+  .upload-zone input { display: none; }
+  .upload-zone.paste { border-style: solid; border-color: #2d6aa0; background: #e8f0f8; }
+
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .btn { padding: 10px 24px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: #2d6aa0; color: #fff; }
+  .btn-primary:hover { background: #1a3a5c; }
+  .btn-outline { background: #fff; color: #2d6aa0; border: 1px solid #2d6aa0; }
+  .btn-outline:hover { background: #f0f5fa; }
+  .btn-success { background: #27ae60; color: #fff; }
+  .btn-success:hover { background: #1e8449; }
+  .btn-danger { background: #e74c3c; color: #fff; }
+  .btn-danger:hover { background: #c0392b; }
+
+  .status { text-align: center; padding: 12px; font-size: 14px; margin-top: 12px; border-radius: 6px; }
+  .status.loading { color: #2d6aa0; background: #e3f2fd; }
+  .status.error { color: #d32f2f; background: #ffebee; }
+  .status.success { color: #2e7d32; background: #e8f5e9; }
+  .status.info { color: #e67e22; background: #fff3e0; }
+
+  /* 预览表 */
+  .preview-wrap { max-height: 400px; overflow: auto; margin: 16px 0; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .preview-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .preview-wrap th { background: #2d6aa0; color: #fff; padding: 8px 10px; text-align: center; font-weight: 500; position: sticky; top: 0; z-index: 1; }
+  .preview-wrap td { padding: 0; border-bottom: 1px solid #e8ecf0; }
+  .preview-wrap td input { width: 100%; border: none; padding: 6px 8px; font-size: 13px; text-align: center; background: transparent; }
+  .preview-wrap td input:focus { outline: 2px solid #2d6aa0; background: #f0f5fa; }
+  .preview-wrap tr:hover td { background: #fafafa; }
+  .preview-wrap .row-num { color: #999; font-size: 11px; width: 30px; text-align: center; }
+
+  /* 截图预览 */
+  .img-preview { max-width: 400px; max-height: 300px; border-radius: 8px; border: 2px solid #e0e0e0; }
+
+  /* 结果区 */
+  table.rank { width: 100%; border-collapse: collapse; font-size: 14px; margin: 12px 0; }
+  table.rank th { background: #2d6aa0; color: #fff; padding: 10px 12px; text-align: left; font-weight: 500; }
+  table.rank td { padding: 10px 12px; border-bottom: 1px solid #e8ecf0; }
+  table.rank tr:hover td { background: #f8fafc; }
+  .rank-1 { font-weight: 700; color: #c0392b; }
+  .rank-2 { font-weight: 600; color: #e67e22; }
+  .rank-3 { font-weight: 600; color: #2d6aa0; }
+  .sig-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .sig-yes { background: #e8f5e9; color: #2e7d32; }
+  .sig-no { background: #fafafa; color: #999; }
+
+  .chart-wrap { max-width: 700px; margin: 0 auto; }
+  .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid #e8ecf0; }
+  .tab { padding: 10px 20px; cursor: pointer; font-size: 14px; color: #666; border: none; background: none; transition: all 0.2s; }
+  .tab.active { color: #2d6aa0; border-bottom: 2px solid #2d6aa0; margin-bottom: -2px; font-weight: 600; }
+
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .info-item { background: #f8fafc; padding: 12px; border-radius: 6px; text-align: center; }
+  .info-item .label { font-size: 12px; color: #999; }
+  .info-item .value { font-size: 20px; font-weight: 700; color: #1a3a5c; margin-top: 4px; }
+
+  .summer-box { display: flex; gap: 16px; flex-wrap: wrap; }
+  .summer-card { flex: 1; min-width: 180px; background: #f8fafc; padding: 14px; border-radius: 8px; text-align: center; }
+  .summer-card.highlight { background: linear-gradient(135deg, #fff3e0, #ffe0b2); }
+  .summer-card .label { font-size: 12px; color: #888; }
+  .summer-card .num { font-size: 24px; font-weight: 700; margin: 6px 0; }
+  .summer-card .gap { font-size: 13px; color: #e67e22; }
+
+  .ocr-debug { background: #f5f5f5; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12px; max-height: 150px; overflow: auto; white-space: pre-wrap; margin-top: 12px; }
+
+  /* 数据库状态 */
+  .db-bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 12px 0; }
+  .db-stat { display: flex; align-items: center; gap: 8px; }
+  .db-stat .db-num { font-size: 22px; font-weight: 700; color: #2d6aa0; }
+  .db-stat .db-label { font-size: 12px; color: #888; }
+  .db-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .db-badge-full { background: #e8f5e9; color: #2e7d32; }
+  .db-badge-empty { background: #fafafa; color: #999; }
+  .db-badge-new { background: #fff3e0; color: #e67e22; }
+
+  /* AI建议样式 */
+  .sugg-item { background: #f8f9fb; border-radius: 10px; padding: 18px 20px; margin-bottom: 12px; border-left: 5px solid #ddd; transition: all 0.2s; }
+  .sugg-item:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .sugg-item.p1 { border-left-color: #e74c3c; }
+  .sugg-item.p2 { border-left-color: #f39c12; }
+  .sugg-item.p3 { border-left-color: #3498db; }
+  .sugg-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .sugg-rank { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+  .p1 .sugg-rank { background: #e74c3c; }
+  .p2 .sugg-rank { background: #f39c12; }
+  .p3 .sugg-rank { background: #3498db; }
+  .sugg-var { font-size: 17px; font-weight: 700; }
+  .sugg-tag { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; }
+  .tag-high { background: #fff2f0; color: #cf1322; }
+  .tag-mid { background: #fff7e6; color: #d48806; }
+  .tag-low { background: #f0f5ff; color: #2f54eb; }
+  .sugg-detail { margin-left: 40px; font-size: 13px; color: #555; line-height: 1.8; }
+  .sugg-effect { color: #52c41a; font-weight: 600; }
+  .sugg-action { background: #e6f7ff; padding: 8px 12px; border-radius: 6px; margin-top: 6px; color: #1890ff; font-size: 12px; }
+  .sugg-action::before { content: '行动建议：'; font-weight: 700; }
+  .funnel-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fafafa; border-radius: 8px; margin-bottom: 8px; }
+  .funnel-label { min-width: 130px; font-size: 13px; font-weight: 600; }
+  .funnel-bar-bg { flex: 1; height: 24px; background: #eee; border-radius: 12px; overflow: hidden; }
+  .funnel-bar-fill { height: 100%; border-radius: 12px; transition: width 0.5s; }
+  .funnel-drop { font-size: 12px; color: #ff4d4f; font-weight: 700; min-width: 60px; text-align: right; }
+  .funnel-drop.healthy { color: #52c41a; }
+  .funnel-drop.warning { color: #faad14; }
+  .scenario-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+  .scenario-table th { background: #f0f5ff; padding: 8px; text-align: center; font-weight: 600; }
+  .scenario-table td { padding: 8px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+  .scenario-table .gain { color: #52c41a; font-weight: 700; }
+  .sugg-summary { background: linear-gradient(135deg, #f6ffed, #e6ffe6); border: 1px solid #b7eb8f; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; font-size: 14px; line-height: 1.8; }
+  .sugg-summary strong { color: #389e0d; }
+
+  /* 个人诊断样式 */
+  .personal-card { background: #fff; border-radius: 12px; padding: 20px; }
+  .personal-summary { padding: 16px 20px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; line-height: 1.8; background: #f5f8fc; border: 1px solid #d6e4f0; }
+  .personal-summary.weak { background: #fff2f0; border: 1px solid #ffccc7; }
+  .personal-summary.warn { background: #fff2f0; border: 1px solid #ffccc7; }
+  .personal-summary.ok { background: #fffbe6; border: 1px solid #ffe58f; }
+  .personal-summary.good { background: #f6ffed; border: 1px solid #b7eb8f; }
+  .negative { color: #ff4d4f !important; }
+  .positive { color: #52c41a !important; }
+  .cmp-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; gap: 12px; }
+  .cmp-row:last-child { border-bottom: none; }
+  .cmp-label { width: 100px; font-size: 14px; font-weight: 600; flex-shrink: 0; }
+  .cmp-bar-wrap { flex: 1; display: flex; align-items: center; gap: 8px; }
+  .cmp-bar { height: 28px; border-radius: 6px; transition: width 0.6s; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: #fff; font-weight: 600; min-width: 30px; }
+  .cmp-bar.personal { background: #2563eb; }
+  .cmp-bar.benchmark { background: #f59e0b; color: #fff; }
+  .cmp-bar.top { background: #10b981; }
+  .cmp-gap { width: 70px; text-align: right; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .cmp-gap.positive { color: #52c41a; }
+  .cmp-gap.negative { color: #ff4d4f; }
+  .cmp-gap.neutral { color: #888; }
+  .advice-card { padding: 14px 18px; border-radius: 8px; margin-bottom: 10px; font-size: 13px; line-height: 1.8; }
+  .advice-card.priority { background: #fff2f0; border-left: 4px solid #e74c3c; }
+  .advice-card.secondary { background: #fffbe6; border-left: 4px solid #f39c12; }
+  .advice-card.strength { background: #f6ffed; border-left: 4px solid #52c41a; }
+  .name-selector { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .name-selector select { padding: 8px 14px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; min-width: 130px; }
+  .name-selector button { padding: 8px 20px; background: #2d6aa0; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .name-selector button:hover { background: #1a3a5c; }
+
+  @media (max-width: 768px) {
+    .header { padding: 16px; }
+    .header h1 { font-size: 20px; }
+    .container { padding: 12px; }
+    .card { padding: 16px; }
+    .upload-modes { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>AI过程数据分析工具</h1>
+    <p>上传你的数据 → 自动分析哪个环节最影响转化 → 给你改进建议</p>
+  </div>
+
+  <!-- 步骤引导 -->
+  <div style="background:#fff; border-radius:10px; padding:16px 24px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:#2d6aa0; color:#fff; font-weight:700; font-size:14px;">1</span>
+      <span style="font-size:14px; font-weight:600; color:#1a3a5c;">上传数据</span>
+    </div>
+    <span style="color:#ccc;">→</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:#2d6aa0; color:#fff; font-weight:700; font-size:14px;">2</span>
+      <span style="font-size:14px; font-weight:600; color:#1a3a5c;">看分析结论</span>
+    </div>
+    <span style="color:#ccc;">→</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:#2d6aa0; color:#fff; font-weight:700; font-size:14px;">3</span>
+      <span style="font-size:14px; font-weight:600; color:#1a3a5c;">看个人诊断</span>
+    </div>
+    <span style="color:#ccc;">→</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:#2d6aa0; color:#fff; font-weight:700; font-size:14px;">4</span>
+      <span style="font-size:14px; font-weight:600; color:#1a3a5c;">按建议调整</span>
+    </div>
+  </div>
+
+  <!-- 双筛选区：学科 + 年级（全局，切换后下方所有分析联动） -->
+  <div style="display:flex; align-items:center; gap:24px; margin-bottom:20px; padding:12px 18px; background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06); border-left:4px solid #2d6aa0; flex-wrap:wrap;">
+    <span style="font-size:14px;font-weight:700;color:#1a3a5c;">🔍 选择查看范围</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:13px;color:#444;font-weight:600;">学科</span>
+      <select id="subjectFilter" onchange="onSubjectChange()" style="padding:6px 10px;border:1px solid #c0c8d0;border-radius:6px;font-size:14px;">
+        <option value="数学">数学</option>
+        <option value="语文">语文</option>
+        <option value="英语">英语</option>
+        <option value="">全部学科（汇总）</option>
+      </select>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:13px;color:#444;font-weight:600;">年级</span>
+      <select id="gradeFilter" onchange="switchGrade()" style="padding:6px 10px;border:1px solid #c0c8d0;border-radius:6px;font-size:14px;">
+        <option value="">全部年级</option>
+      </select>
+    </div>
+    <span style="font-size:12px;color:#999;">两个都选后，下方「复盘 / 诊断 / 预测 / 对比」全部只看这个范围</span>
+  </div>
+
+<div class="container">
+
+  <!-- ====== 上传区 ====== -->
+  <div class="card" id="uploadCard">
+    <h2>第一步：上传你的数据</h2>
+    <p style="color:#888;font-size:13px;margin-bottom:16px;">两种方式录入数据：① 直接上传填好的 Excel / CSV；② 在网页里一行行手动填写</p>
+    
+    <div class="upload-modes">
+      <!-- Excel 上传 -->
+      <div class="upload-zone" id="csvZone" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">📊</div>
+        <div class="title">上传 Excel / CSV</div>
+        <div class="text">点击或拖拽文件到这里</div>
+        <div class="hint">支持 .xlsx / .xls / .csv 格式</div>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFile(this.files[0])">
+      </div>
+
+      <!-- 手动输入 -->
+      <div class="upload-zone" id="manualZone" onclick="showManualEntry()">
+        <div class="icon">✍️</div>
+        <div class="title">手动输入数据</div>
+        <div class="text">点击后在线填写表格</div>
+        <div class="hint">适合少量数据，逐行录入</div>
+      </div>
+    </div>
+
+    <!-- 年级选择 -->
+    <div style="margin-top: 16px; display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 14px; font-weight: 600; color: #1a3a5c;">年级：</span>
+      <input type="text" id="gradeInput" list="gradeList" placeholder="输入年级，如：三年级"
+             style="padding: 8px 12px; border: 1px solid #c0c8d0; border-radius: 6px; font-size: 14px; width: 200px;">
+      <datalist id="gradeList">
+        <option value="一年级"><option value="二年级"><option value="三年级"><option value="四年级">
+        <option value="五年级"><option value="六年级">
+      </datalist>
+      <span style="font-size: 12px; color: #999;">上传数据前设置，不同年级分开分析</span>
+    </div>
+
+    <!-- 学科选择 -->
+    <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 14px; font-weight: 600; color: #1a3a5c;">学科：</span>
+      <select id="subjectInput" style="padding: 8px 12px; border: 1px solid #c0c8d0; border-radius: 6px; font-size: 14px; width: 200px;">
+        <option value="数学">数学</option>
+        <option value="语文">语文</option>
+        <option value="英语">英语</option>
+      </select>
+      <span style="font-size: 12px; color: #999;">上传数据前设置，不同学科分开分析（数学/语文/英语…）</span>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="loadSample()">查看示例效果（五年级数学）</button>
+      <button class="btn btn-outline" onclick="window.location.href='/download-template'">⬇️ 下载导入模板（含「学科」列）</button>
+    </div>
+    <p style="color:#999;font-size:12px;margin:4px 0 0 0;">模板已带「学科」列，整表可逐行标注 数学/语文/英语，批量导入时各科目自动分开存、互不干扰。</p>
+    <div id="statusMsg" class="status"></div>
+    <!-- 数据库状态 -->
+    <div class="db-bar" id="dbBar" style="margin-top: 12px;">
+      <div class="db-stat"><span class="db-num" id="dbRows">0</span><span class="db-label">条累积数据</span></div>
+      <div class="db-stat"><span class="db-num" id="dbPeople">0</span><span class="db-label">位人员</span></div>
+      <div class="db-stat"><span class="db-num" id="dbBatches">0</span><span class="db-label">期</span></div>
+      <span class="db-badge db-badge-empty" id="dbBadge">暂无历史数据</span>
+      <div id="gradeTags" style="display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto;"></div>
+    </div>
+  </div>
+
+  <!-- ====== 手动输入数据 ====== -->
+  <div class="card" id="previewCard" style="display:none;">
+    <h2>手动输入数据</h2>
+    <p style="color:#888;font-size:13px;margin-bottom:12px;">每行填写一位同学某一期的数据（百分比直接填数字，如 85.5）。填完点「保存并分析」，也可在表格里直接修改。</p>
+    <div class="preview-wrap">
+      <table id="previewTable">
+        <thead id="previewHead"></thead>
+        <tbody id="previewBody"></tbody>
+      </table>
+    </div>
+    <div class="btn-row" style="margin-top:14px;">
+      <button class="btn btn-primary" onclick="analyzeFromPreview()">保存并分析</button>
+      <button class="btn btn-outline" onclick="addRow()">+ 添加一行</button>
+      <button class="btn btn-outline" onclick="resetUpload()">取消</button>
+    </div>
+  </div>
+
+  <!-- ====== 结果区（初始隐藏） ====== -->
+  <div id="resultsArea" style="display:none;">
+
+    <!-- 数据覆盖情况 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <h2 style="margin: 0; border: none; padding: 0;">数据覆盖情况 <span id="gradeLabel" style="font-size:13px; color:#2d6aa0; font-weight:400;"></span></h2>
+      </div>
+      <p style="color:#888;font-size:13px;margin:10px 0 0 0;">这里只显示「攒了多少数据」，不平均、不评价。真正的分析在下面「本期复盘」里，按每一期单独看。</p>
+      <div class="info-grid" id="infoGrid" style="margin-top:16px;"></div>
+      <div id="summerBox" class="summer-box" style="margin-top: 16px;"></div>
+    </div>
+
+    <!-- 本期复盘（核心） -->
+    <div class="card" id="reviewCard">
+      <h2>本期复盘 <span style="font-size:13px;color:#888;font-weight:400;">每期单独看，找出这期的问题、定下期方向</span></h2>
+      <div class="name-selector">
+        <span style="font-weight:600;">选择期次：</span>
+        <select id="reviewPeriod" onchange="runPeriodReview()"><option value="">-- 请选择期次 --</option></select>
+        <span style="font-weight:600;margin-left:14px;">看个人（可选）：</span>
+        <select id="reviewPerson" onchange="runPeriodReview()"><option value="">-- 团队整体 --</option></select>
+        <span style="font-size:12px;color:#999;margin-left:8px;">💡 下方「杠杆模型」用全部历史数据算（数据越多越准）；复盘看「这期 vs 上一期」的变化</span>
+      </div>
+      <div id="reviewContent"></div>
+    </div>
+
+    <!-- 下期预测 & 真实对比 -->
+    <div class="card" id="predictCard">
+      <h2>📈 下期预测 &amp; 真实对比 <span style="font-size:13px;color:#888;font-weight:400;">开下一期前先预测，期次结束后看预测 vs 真实</span></h2>
+      <p style="color:#888;font-size:13px;margin-bottom:14px;">填好你计划达到的 5 个过程指标 → 系统用「杠杆模型」算出预测的最终转化率 / Day3直播间转化率。等这期真实数据上传后，再回来对比预测准不准。</p>
+
+      <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end;">
+        <div>
+          <div style="font-size:12px;color:#666;margin-bottom:4px;">目标期次（如 715）</div>
+          <input id="predictPeriod" placeholder="如 715" style="padding:8px 12px;border:1px solid #c0c8d0;border-radius:6px;font-size:14px;width:120px;">
+        </div>
+        <div>
+          <div style="font-size:12px;color:#666;margin-bottom:4px;">看个人（可选，留空=团队）</div>
+          <input id="predictName" placeholder="如 志豪" list="predictNameList" style="padding:8px 12px;border:1px solid #c0c8d0;border-radius:6px;font-size:14px;width:140px;">
+          <datalist id="predictNameList"></datalist>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;" id="predictMetrics">
+        <div><div style="font-size:12px;color:#666;margin-bottom:4px;">好友率</div><input id="predict_好友率" type="number" step="0.01" placeholder="%" style="width:100%;padding:8px 10px;border:1px solid #c0c8d0;border-radius:6px;"></div>
+        <div><div style="font-size:12px;color:#666;margin-bottom:4px;">入群率</div><input id="predict_入群率" type="number" step="0.01" placeholder="%" style="width:100%;padding:8px 10px;border:1px solid #c0c8d0;border-radius:6px;"></div>
+        <div><div style="font-size:12px;color:#666;margin-bottom:4px;">APP下载率</div><input id="predict_APP下载率" type="number" step="0.01" placeholder="%" style="width:100%;padding:8px 10px;border:1px solid #c0c8d0;border-radius:6px;"></div>
+        <div><div style="font-size:12px;color:#666;margin-bottom:4px;">开营回复率</div><input id="predict_开营回复率" type="number" step="0.01" placeholder="%" style="width:100%;padding:8px 10px;border:1px solid #c0c8d0;border-radius:6px;"></div>
+        <div><div style="font-size:12px;color:#666;margin-bottom:4px;">Day1到课率</div><input id="predict_Day1到课率" type="number" step="0.01" placeholder="%" style="width:100%;padding:8px 10px;border:1px solid #c0c8d0;border-radius:6px;"></div>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn btn-primary" onclick="runPredict()">预测下期转化率</button>
+        <button class="btn btn-outline" onclick="savePrediction()">保存这次预测</button>
+      </div>
+
+      <div id="predictResult" style="margin-top:14px;"></div>
+
+      <div style="margin-top:22px;border-top:1px dashed #e0e6ec;padding-top:16px;">
+        <div style="font-weight:600;margin-bottom:10px;color:#1a3a5c;">🔍 看某期：预测 vs 真实</div>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+          <div>
+            <div style="font-size:12px;color:#666;margin-bottom:4px;">选择期次</div>
+            <select id="comparePeriod" style="padding:8px 12px;border:1px solid #c0c8d0;border-radius:6px;font-size:14px;"><option value="">-- 请选择 --</option></select>
+          </div>
+          <div>
+            <div style="font-size:12px;color:#666;margin-bottom:4px;">看个人（可选）</div>
+            <select id="compareName" style="padding:8px 12px;border:1px solid #c0c8d0;border-radius:6px;font-size:14px;"><option value="">-- 团队整体 --</option></select>
+          </div>
+          <button class="btn btn-outline" onclick="runCompare()">对比</button>
+        </div>
+        <div id="compareResult" style="margin-top:14px;"></div>
+      </div>
+    </div>
+
+    <!-- 哪个环节最影响转化 -->
+    <div class="card">
+      <h2>杠杆模型：哪个环节最影响转化率？ <span style="font-size:13px;color:#888;font-weight:400;">（用全部历史数据算，数据越多越准）</span></h2>
+      <p style="color:#888;font-size:13px;margin-bottom:16px;">这是「全量数据」算出的固定规律：每个环节每提升 1 个百分点，转化率能涨多少。它是复盘时判断"哪项短板最值钱"的依据，本身不是某一期的结论。</p>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('final')">最终转化率</button>
+        <button class="tab" onclick="switchTab('day3')">Day3直播间转化率</button>
+        <button class="tab" onclick="switchTab('path')">各环节怎么影响转化</button>
+      </div>
+
+      <div id="tab-final" class="tab-content">
+        <table class="rank">
+          <thead><tr><th>排名</th><th>环节</th><th>每提升1%，转化率多多少</th><th>重要程度</th></tr></thead>
+          <tbody id="tb-final"></tbody>
+        </table>
+      </div>
+      <div id="tab-day3" class="tab-content" style="display:none;">
+        <table class="rank">
+          <thead><tr><th>排名</th><th>环节</th><th>每提升1%，转化率多多少</th><th>重要程度</th></tr></thead>
+          <tbody id="tb-day3"></tbody>
+        </table>
+      </div>
+      <div id="tab-path" class="tab-content" style="display:none;">
+        <p style="background:#f0f5ff; padding:12px 16px; border-radius:8px; font-size:13px; color:#2d6aa0; margin-bottom:12px;">
+          💡 怎么看：一个环节可以「直接」影响转化率，也可以通过「先影响下一个环节」再间接影响转化率。总影响 = 直接 + 间接。
+        </p>
+        <table class="rank">
+          <thead><tr><th>排名</th><th>环节</th><th>直接影响力</th><th>间接影响力</th><th>总影响力</th></tr></thead>
+          <tbody id="tb-path"></tbody>
+        </table>
+      </div>
+
+      <div class="chart-wrap" style="margin-top:24px;">
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 全量模型结论（精简版） -->
+    <div class="card" id="suggestionsCard" style="display:none;">
+      <h2>全量模型结论 <span style="font-size:13px;color:#888;font-weight:400;">（数据越多越准的固定规律，供复盘参考）</span></h2>
+      <div id="suggestionsContent"></div>
+    </div>
+
+    <!-- 个人诊断 -->
+    <div class="card" id="personalCard" style="display:none;">
+      <h2>个人诊断</h2>
+      <p style="color:#888;font-size:13px;margin-bottom:16px;">选你的名字和期次 → 跟同组其他人比，看你哪里强、哪里弱、该补什么</p>
+      <div class="name-selector">
+        <span style="font-weight:600;">选你的名字：</span>
+        <select id="nameSelect" onchange="onNameChanged()"><option value="">-- 请选择 --</option></select>
+        <span style="font-weight:600;margin-left:12px;">选期次：</span>
+        <select id="periodSelect"><option value="">-- 先选名字 --</option></select>
+        <button onclick="runPersonalDiagnosis()">开始诊断</button>
+      </div>
+      <div id="personalContent"></div>
+    </div>
+  </div>
+</div>
+
+  <div class="card" id="manageCard">
+    <h2>我的数据 · 查看与修改</h2>
+    <p style="color:#888;font-size:13px;margin-bottom:12px;">这里是你录入的所有<strong>真实数据</strong>，也是预测模型的唯一训练来源。AI 预测出的结果不会出现在本表、也不会回流参与训练。数据可随时查看；但要<strong>修改 / 删除</strong>，需先用你的访问口令解锁（仅你能操作）。</p>
+    <div id="editLock" style="background:#fff8e6;border:1px solid #f0d98a;border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;color:#6b5a1e;"></div>
+    <div id="recordTableWrap" style="overflow-x:auto;display:none;">
+      <table id="recordTable" style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f5f7fa;color:#555;text-align:left;">
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">期次</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">姓名</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">学科</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">年级</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">好友率</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">入群率</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">APP下载率</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">开营回复率</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">Day1到课率</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">第三天转化</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">最终转化</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">来源</th>
+            <th style="padding:8px;border-bottom:2px solid #e3e8ef;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="recordBody"></tbody>
+      </table>
+    </div>
+    <div id="manageMsg" style="margin-top:10px;font-size:13px;color:#888;"></div>
+  </div>
+
+<script>
+let analysisResult = null;
+let barChart = null;
+let previewData = null; // 手动录入 / 上传的数据
+let currentSubject = '数学'; // 全局学科筛选：数学/语文/英语/''（全部）
+
+// 学科切换：刷新所有下拉，并重跑主分析（杠杆模型/数据覆盖/建议）按学科过滤
+function onSubjectChange() {
+  currentSubject = document.getElementById('subjectFilter').value;
+  if (analysisResult) switchGrade(true); // 带学科重跑主分析
+  loadPeriods();
+  loadNames();
+  loadComparePeriods();
+  loadRecords();
+}
+
+// ── 页面加载时读取数据库状态，并默认加载「数学·五年级」真实数据 ──
+fetch('/db-stats')
+  .then(r => r.json())
+  .then(stats => {
+    updateDbBar(stats);
+    // 默认加载数学五年级真实库，而不是空白或示例视图
+    currentSubject = '数学';
+    document.getElementById('subjectFilter').value = '数学';
+    const gl = (stats.grade_list || []);
+    if (gl.includes('五年级')) document.getElementById('gradeFilter').value = '五年级';
+    switchGrade(true);
+  })
+  .catch(() => {});
+
+// 页面加载时预加载姓名列表
+fetch('/names')
+  .then(r => r.json())
+  .then(data => {
+    allNamePeriods = data.periods || {};
+    if (data.names && data.names.length > 0) {
+      const sel = document.getElementById('nameSelect');
+      sel.innerHTML = '<option value="">-- 请选择 --</option>';
+      data.names.forEach(n => {
+        sel.innerHTML += '<option value="' + n + '">' + n + '</option>';
+      });
+      document.getElementById('personalCard').style.display = 'block';
+      // 同步填充预测卡的姓名列表
+      const pnl = document.getElementById('predictNameList');
+      if (pnl) pnl.innerHTML = data.names.map(n => '<option value="' + n + '">').join('');
+      const cn = document.getElementById('compareName');
+      if (cn) {
+        const cur = cn.value;
+        cn.innerHTML = '<option value="">-- 团队整体 --</option>' + data.names.map(n => '<option value="' + n + '">' + n + '</option>').join('');
+        cn.value = cur;
+      }
+    }
+    loadComparePeriods();
+  })
+  .catch(() => {});
+
+function updateDbBar(stats) {
+  if (!stats) return;
+  document.getElementById('dbRows').textContent = stats.total_rows || 0;
+  document.getElementById('dbPeople').textContent = stats.total_people || 0;
+  document.getElementById('dbBatches').textContent = stats.total_batches || 0;
+  const badge = document.getElementById('dbBadge');
+  if (stats.total_rows > 0) {
+    badge.textContent = '已积累 ' + stats.total_rows + ' 条数据，数据越多分析越准';
+    badge.className = 'db-badge db-badge-full';
+  } else {
+    badge.textContent = '暂无历史数据';
+    badge.className = 'db-badge db-badge-empty';
+  }
+  // 显示各年级标签
+  const grades = stats.grades || {};
+  const gradeList = stats.grade_list || [];
+  let tagsHtml = '';
+  for (const [g, info] of Object.entries(grades)) {
+    tagsHtml += '<span class="db-badge db-badge-full" style="font-size:11px; padding:3px 8px;">' + g + ': ' + info.count + '条</span>';
+  }
+  document.getElementById('gradeTags').innerHTML = tagsHtml;
+  // 更新年级下拉
+  const sel = document.getElementById('gradeFilter');
+  const curVal = sel.value;
+  sel.innerHTML = '<option value="">全年级（汇总）</option>';
+  gradeList.forEach(g => {
+    sel.innerHTML += '<option value="' + g + '">' + g + '</option>';
+  });
+  sel.value = curVal;
+}
+
+// ── Excel 拖拽 ──
+['csvZone'].forEach(id => {
+  const zone = document.getElementById(id);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    handleFile(file);
+  });
+});
+
+// ── Excel/CSV 文件处理 ──
+function handleFile(file) {
+  if (!file) return;
+  const status = document.getElementById('statusMsg');
+  status.textContent = '分析中，请稍候...';
+  status.className = 'status loading';
+
+  const formData = new FormData();
+  formData.append('file', file);
+  const grade = document.getElementById('gradeInput').value.trim();
+  if (grade) formData.append('grade', grade);
+  const subject = document.getElementById('subjectInput').value.trim();
+  if (subject) formData.append('subject', subject);
+  fetch('/analyze', { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showError(data.error); return; }
+      const savedNote = data.just_saved ? '，本次新增 ' + data.just_saved + ' 条' : '';
+      status.textContent = '✅ 分析完成！数据库共 ' + data.rows + ' 条数据，' + data.batches + ' 期' + savedNote;
+      status.className = 'status success';
+      if (data.db_stats) updateDbBar(data.db_stats);
+      // 上传后把当前学科同步为刚上传的学科，方便直接看结果
+      if (data.current_subject && data.current_subject !== '全部') {
+        currentSubject = data.current_subject;
+        document.getElementById('subjectFilter').value = currentSubject;
+      }
+      analysisResult = data;
+      renderAll();
+    })
+    .catch(err => showError('请求失败: ' + err.message));
+}
+
+// ── 手动输入 ──
+const MANUAL_COLUMNS = ["期次", "姓名", "学科", "好友率", "入群率", "APP下载率", "开营回复率", "Day1到课率", "Day3出直播间转化率", "最终转化率"];
+
+function showManualEntry() {
+  previewData = { columns: MANUAL_COLUMNS, rows: [{}] };
+  MANUAL_COLUMNS.forEach(c => { previewData.rows[0][c] = ''; });
+  // 默认学科跟随上传区的学科选择
+  const subjEl = document.getElementById('subjectInput');
+  if (subjEl) previewData.rows[0]['学科'] = subjEl.value || '数学';
+  renderPreview(previewData);
+  document.getElementById('previewCard').style.display = 'block';
+  document.getElementById('resultsArea').style.display = 'none';
+  document.getElementById('statusMsg').textContent = '';
+  document.getElementById('statusMsg').className = 'status';
+  window.scrollTo({ top: document.getElementById('previewCard').offsetTop - 20, behavior: 'smooth' });
+}
+
+function renderPreview(parsed) {
+  const columns = parsed.columns || [];
+  const rows = parsed.rows || [];
+
+  // 表头
+  document.getElementById('previewHead').innerHTML = 
+    '<tr><th class="row-num">#</th>' + columns.map(c => '<th>' + c + '</th>').join('') + '</tr>';
+  
+  // 数据行
+  let html = '';
+  rows.forEach((row, i) => {
+    html += '<tr><td class="row-num">' + (i + 1) + '</td>';
+    columns.forEach(col => {
+      const isPct = col !== '期次' && col !== '姓名' && col !== '学科';
+      const ph = isPct ? ' placeholder="%"' : '';
+      html += '<td><input value="' + (row[col] ?? '') + '"' + ph + ' data-row="' + i + '" data-col="' + col + '" onchange="updateCell(this)"></td>';
+    });
+    html += '</tr>';
+  });
+  document.getElementById('previewBody').innerHTML = html;
+}
+
+function updateCell(input) {
+  const rowIdx = parseInt(input.dataset.row);
+  const col = input.dataset.col;
+  if (previewData && previewData.rows[rowIdx]) {
+    previewData.rows[rowIdx][col] = input.value;
+  }
+}
+
+function addRow() {
+  if (!previewData) return;
+  const newRow = {};
+  (previewData.columns || []).forEach(c => { newRow[c] = ''; });
+  previewData.rows.push(newRow);
+  renderPreview(previewData);
+}
+
+function analyzeFromPreview() {
+  if (!previewData || !previewData.rows || previewData.rows.length === 0) {
+    showError('没有可分析的数据');
+    return;
+  }
+  // 过滤掉完全空行，并校验有效行
+  const valid = previewData.rows.filter(r =>
+    String(r["期次"] || '').trim() !== '' && String(r["姓名"] || '').trim() !== ''
+  );
+  if (valid.length === 0) {
+    showError('请至少填写一行的「期次」和「姓名」');
+    return;
+  }
+
+  const status = document.getElementById('statusMsg');
+  status.textContent = '分析中...';
+  status.className = 'status loading';
+
+  fetch('/analyze-json', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rows: valid, grade: document.getElementById('gradeInput').value.trim(), subject: document.getElementById('subjectInput').value.trim() })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showError(data.error); return; }
+      const savedNote = data.just_saved ? '，本次新增 ' + data.just_saved + ' 条' : '';
+      status.textContent = '✅ 分析完成！数据库共 ' + data.rows + ' 条数据，' + data.batches + ' 期' + savedNote;
+      status.className = 'status success';
+      if (data.db_stats) updateDbBar(data.db_stats);
+      // 录入后把当前学科同步为刚录入的学科
+      if (data.current_subject && data.current_subject !== '全部') {
+        currentSubject = data.current_subject;
+        document.getElementById('subjectFilter').value = currentSubject;
+      }
+      analysisResult = data;
+      renderAll();
+      document.getElementById('previewCard').style.display = 'none';
+    })
+    .catch(err => showError('分析失败: ' + err.message));
+}
+
+function resetUpload() {
+  previewData = null;
+  document.getElementById('previewCard').style.display = 'none';
+  document.getElementById('statusMsg').textContent = '';
+  document.getElementById('statusMsg').className = 'status';
+}
+
+// ── 示例效果：示例库即五年级数学真实数据，直接切到「数学·五年级」查看 ──
+function loadSample() {
+  document.getElementById('subjectFilter').value = '数学';
+  currentSubject = '数学';
+  const sel = document.getElementById('gradeFilter');
+  if ([...sel.options].some(o => o.value === '五年级')) sel.value = '五年级';
+  switchGrade(true);
+}
+
+// ── 渲染结果 ──
+function renderAll() {
+  const d = analysisResult;
+  document.getElementById('resultsArea').style.display = 'block';
+
+  // 显示当前年级
+  const gradeLabel = document.getElementById('gradeLabel');
+  gradeLabel.textContent = d.current_grade ? '（当前：' + d.current_grade + '）' : '';
+  // 同步年级下拉
+  document.getElementById('gradeFilter').value = d.current_grade === '全年级' ? '' : (d.current_grade || '');
+
+  document.getElementById('infoGrid').innerHTML = [
+    { label: '累积数据', value: d.rows + ' 条' },
+    { label: '覆盖期数', value: d.batches + ' 期' },
+    { label: '覆盖人数', value: d.db_stats?.total_people ?? '—' },
+    { label: '杠杆模型样本', value: (d.db_stats?.total_rows ?? d.rows) + ' 条' },
+  ].map(item => '<div class="info-item"><div class="label">' + item.label + '</div><div class="value">' + item.value + '</div></div>').join('');
+
+  const se = d.summer_effect;
+  let summerHTML = '<p style="font-size:13px;color:#888;margin-bottom:10px;">📅 暑假 vs 非暑假对比（已自动排除暑假影响，不会干扰分析结果）</p>';
+  for (const [key, val] of Object.entries(se)) {
+    const label = key === '最终转化率' ? '最终转化率' : 'Day3直播间转化率';
+    summerHTML += '<div class="summer-card highlight"><div class="label">' + label + '</div><div class="num">非暑假 ' + val.nonsummer + '% / 暑假 ' + val.summer + '%</div><div class="gap">暑假高出 +' + val.gap + '%</div></div>';
+  }
+  document.getElementById('summerBox').innerHTML = summerHTML;
+
+  renderTable('tb-final', d.final);
+  renderTable('tb-day3', d.day3);
+  renderPathTable(d.path);
+  drawChart(d.final);
+  
+  // 自动拉取AI建议
+  fetchSuggestions(d.current_grade);
+  // 加载姓名列表供个人诊断
+  loadNames(d.current_grade);
+  // 加载期次供本期复盘
+  loadPeriods(d.current_grade);
+}
+
+function renderTable(tbodyId, data) {
+  const tbody = document.getElementById(tbodyId);
+  const ranks = ['rank-1', 'rank-2', 'rank-3'];
+  const levelTexts = ['⭐⭐⭐ 最关键', '⭐⭐ 比较重要', '⭐ 有影响'];
+  let html = '';
+  data.forEach((row, i) => {
+    const rankClass = ranks[i] || '';
+    const levelText = levelTexts[i] || '影响较小';
+    html += '<tr><td class="' + rankClass + '">' + (i + 1) + '</td><td style="font-weight:600;">' + row.variable + '</td><td style="font-weight:600;color:#c0392b;font-size:16px;">+' + row.coefficient.toFixed(2) + '%</td><td>' + (row.significant ? levelText : '影响较小') + '</td></tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+function renderPathTable(data) {
+  const tbody = document.getElementById('tb-path');
+  const ranks = ['rank-1', 'rank-2', 'rank-3'];
+  let html = '';
+  data.forEach((row, i) => {
+    const rankClass = ranks[i] || '';
+    const direct = row.direct_effect != null ? (row.direct_effect * 100).toFixed(2) + '%' : '-';
+    const indirect = row.indirect_effect != null ? (row.indirect_effect * 100).toFixed(2) + '%' : '-';
+    const total = row.total_effect != null ? (row.total_effect * 100).toFixed(2) + '%' : '-';
+    html += '<tr><td class="' + rankClass + '">' + (i + 1) + '</td><td style="font-weight:600;">' + row.variable + '</td><td>' + direct + '</td><td>' + indirect + '</td><td style="font-weight:700;color:#c0392b;font-size:15px;">' + total + '</td></tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+function drawChart(data) {
+  const ctx = document.getElementById('barChart').getContext('2d');
+  if (barChart) barChart.destroy();
+  barChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.variable),
+      datasets: [{
+        label: '每提升1%，转化率提升(%)',
+        data: data.map(d => d.coefficient * 100),
+        backgroundColor: data.map((_, i) => ['rgba(192,57,43,0.8)', 'rgba(230,126,34,0.7)', 'rgba(45,106,160,0.7)', 'rgba(149,165,166,0.5)', 'rgba(149,165,166,0.4)'][i] || 'rgba(149,165,166,0.4)'),
+        borderColor: data.map((_, i) => ['#c0392b', '#e67e22', '#2d6aa0', '#95a5a6', '#95a5a6'][i] || '#95a5a6'),
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: { display: true, text: '各环节对转化率的影响大小（柱子越高越重要）', font: { size: 16 }, color: '#1a3a5c' },
+        legend: { display: false }
+      },
+      scales: { y: { beginAtZero: true, title: { display: true, text: '每提升1%，转化率多多少 (%)', font: { size: 13 } } } }
+    }
+  });
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+  document.getElementById('tab-' + tab).style.display = 'block';
+  if (tab === 'final') drawChart(analysisResult.final);
+  else if (tab === 'day3') drawChart(analysisResult.day3);
+}
+
+function showError(msg) {
+  const status = document.getElementById('statusMsg');
+  status.textContent = msg;
+  status.className = 'status error';
+}
+
+// ── AI建议 ──
+function fetchSuggestions(currentGrade) {
+  const grade = currentGrade === '全年级' ? '' : (currentGrade || '');
+  fetch('/suggestions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ grade: grade, subject: currentSubject })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) return;
+      renderSuggestions(data);
+    })
+    .catch(() => {});
+}
+
+function renderAction(action) {
+  if (!action) return '';
+  // 兼容旧的纯字符串建议
+  if (typeof action === 'string') {
+    return '<div style="font-size:13px;color:#555;line-height:1.7;margin-top:6px;">💡 ' + action + '</div>';
+  }
+  let h = '';
+  if (action.control) {
+    const isUp = action.control === '上游不可控';
+    h += '<div style="margin:8px 0 6px;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700;background:' + (isUp ? '#fdecea' : '#eaf2fb') + ';color:' + (isUp ? '#c0392b' : '#2d6aa0') + ';">' + action.control + '</span></div>';
+  }
+  if (action.note) {
+    h += '<div style="font-size:13px;color:#555;line-height:1.7;margin-bottom:8px;">' + action.note + '</div>';
+  }
+  if (action.sop && action.sop.length) {
+    h += '<div style="font-size:12px;font-weight:700;color:#1f3a5f;margin:8px 0 4px;">📋 可落地的SOP动作</div><div style="font-size:13px;color:#333;line-height:1.85;">' + action.sop.map(function(s){return '· ' + s;}).join('<br>') + '</div>';
+  }
+  if (action.materials && action.materials.length) {
+    h += '<div style="font-size:12px;font-weight:700;color:#8a5a00;margin:8px 0 4px;">🎨 需要做的物料图</div><div style="font-size:13px;color:#555;line-height:1.85;">' + action.materials.map(function(m){return '· ' + m;}).join('<br>') + '</div>';
+  }
+  if (action.ai && action.ai.length) {
+    h += '<div style="font-size:12px;font-weight:700;color:#6a2d8a;margin:8px 0 4px;">🤖 借助AI能做的</div><div style="font-size:13px;color:#555;line-height:1.85;">' + action.ai.map(function(a){return '· ' + a;}).join('<br>') + '</div>';
+  }
+  if (action.seed) {
+    h += '<div style="font-size:12px;font-weight:700;color:#b5480e;margin:8px 0 4px;">🎭 内部示范家长打法（托号）</div><div style="font-size:13px;color:#444;line-height:1.85;background:#fff7ed;border-left:3px solid #f59e0b;padding:6px 10px;border-radius:6px;">' + action.seed + '</div>';
+  }
+  if (action.filter) {
+    h += '<div style="font-size:12px;font-weight:700;color:#0b6e4f;margin:8px 0 4px;">🔍 卡点筛选 SOP</div><div style="font-size:13px;color:#333;line-height:1.85;background:#ecfdf5;border-left:3px solid #10b981;padding:6px 10px;border-radius:6px;">' + action.filter + '</div>';
+  }
+  if (action.filter_more) {
+    h += '<div style="font-size:12px;color:#0b6e4f;margin:6px 0 2px;line-height:1.8;">💡 还可叠加筛选维度：' + action.filter_more + '</div>';
+  }
+  return h;
+}
+
+function renderSuggestions(data) {
+  const card = document.getElementById('suggestionsCard');
+  const content = document.getElementById('suggestionsContent');
+  card.style.display = 'block';
+
+  let html = '';
+  // 只保留最核心的一行结论：全量数据算出的最大杠杆项
+  if (data.suggestions && data.suggestions.length > 0) {
+    const top = data.suggestions[0];
+    html += '<div style="padding:12px 16px;background:#f8fafc;border-radius:8px;border-left:4px solid #2d6aa0;line-height:1.7;">';
+    html += '基于全部 <b>' + data.rows + '</b> 条历史数据，对转化率影响最大的环节是：<b>' + top.variable + '</b>（每提升10个百分点，预计转化率约 <b>+' + top.gain_per_10pct + '%</b>）。';
+    html += ' 当前均值 <b>' + top.current_mean + '%</b>，' + top.level_note;
+    if (top.action) html += renderAction(top.action);
+    html += '</div>';
+
+    // 其余环节只列一行紧凑排名（不展开细节）
+    if (data.suggestions.length > 1) {
+      html += '<p style="margin-top:10px;font-size:13px;color:#777;">其余影响力排名：';
+      html += data.suggestions.slice(1).map(function(s) { return s.variable; }).join(' ＞ ');
+      html += '</p>';
+    }
+  } else {
+    html += '<p style="color:#999;padding:12px 0;">暂无足够数据生成模型结论。</p>';
+  }
+
+  content.innerHTML = html;
+}
+
+// ── 加载姓名列表 ──
+let allNamePeriods = {}; // { name: [periods...] }
+
+// 把期次编码(如 705 / 0622)转成更易懂的「7月5日」格式
+function formatPeriod(p) {
+  if (!p) return p;
+  if (/^\d{3,4}$/.test(p)) {
+    const s = ('000' + p).slice(-4);
+    const m = parseInt(s.slice(0, 2), 10);
+    const d = parseInt(s.slice(2), 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return m + '月' + d + '日';
+  }
+  return p;
+}
+
+function loadNames(grade) {
+  const g = grade === '全年级' ? '' : (grade || '');
+  const s = currentSubject;
+  fetch('/names?grade=' + encodeURIComponent(g) + (s ? '&subject=' + encodeURIComponent(s) : ''))
+    .then(r => r.json())
+    .then(data => {
+      allNamePeriods = data.periods || {};
+      const sel = document.getElementById('nameSelect');
+      sel.innerHTML = '<option value="">-- 请选择 --</option>';
+      if (data.names) {
+        data.names.forEach(n => {
+          sel.innerHTML += '<option value="' + n + '">' + n + '</option>';
+        });
+      }
+      document.getElementById('personalCard').style.display = 'block';
+      // 重置期次下拉框
+      document.getElementById('periodSelect').innerHTML = '<option value="">-- 先选成员 --</option>';
+      document.getElementById('personalContent').innerHTML = '';
+    })
+    .catch(() => {});
+}
+
+function loadPeriods(grade) {
+  const g = grade === '全年级' ? '' : (grade || '');
+  const s = currentSubject;
+  fetch('/periods?grade=' + encodeURIComponent(g) + (s ? '&subject=' + encodeURIComponent(s) : ''))
+    .then(r => r.json())
+    .then(data => {
+      const sel = document.getElementById('reviewPeriod');
+      sel.innerHTML = '<option value="">-- 请选择期次 --</option>';
+      if (data.periods) {
+        data.periods.forEach(p => {
+          sel.innerHTML += '<option value="' + p + '">' + formatPeriod(p) + '（' + p + '）</option>';
+        });
+      }
+      document.getElementById('reviewContent').innerHTML = '<p style="color:#999;padding:16px 0;">选一期，看这期团队哪里出了问题、下期怎么调。</p>';
+    })
+    .catch(() => {});
+  // 同时填充「看个人」下拉（可选）
+  fetch('/names?grade=' + encodeURIComponent(g) + (s ? '&subject=' + encodeURIComponent(s) : ''))
+    .then(r => r.json())
+    .then(data => {
+      const psel = document.getElementById('reviewPerson');
+      psel.innerHTML = '<option value="">-- 团队整体 --</option>';
+      if (data.names) {
+        data.names.forEach(n => {
+          psel.innerHTML += '<option value="' + n + '">' + n + '</option>';
+        });
+      }
+    })
+    .catch(() => {});
+}
+
+function onNameChanged() {
+  const name = document.getElementById('nameSelect').value;
+  const periodSel = document.getElementById('periodSelect');
+  periodSel.innerHTML = '<option value="">-- 请选择 --</option>';
+  if (name && allNamePeriods[name]) {
+    allNamePeriods[name].forEach(p => {
+      periodSel.innerHTML += '<option value="' + p + '">' + p + ' 期</option>';
+    });
+  }
+  document.getElementById('personalContent').innerHTML = '';
+}
+
+function runPeriodReview() {
+  const period = document.getElementById('reviewPeriod').value;
+  const person = document.getElementById('reviewPerson').value;
+  if (!period) {
+    document.getElementById('reviewContent').innerHTML = '<p style="color:#999;padding:16px 0;">选一期，看这期团队哪里出了问题、下期怎么调。</p>';
+    return;
+  }
+  const grade = analysisResult ? (analysisResult.current_grade === '全年级' ? '' : analysisResult.current_grade) : '';
+  const content = document.getElementById('reviewContent');
+  const who = person ? (person + ' 个人 ') : '团队 ';
+  content.innerHTML = '<p style="color:#888;padding:20px;">正在复盘 ' + who + formatPeriod(period) + ' 期...</p>';
+
+  fetch('/period-review', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ period: period, grade: grade, name: person, subject: currentSubject })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { content.innerHTML = '<p style="color:#c0392b;padding:16px 0;">' + data.error + '</p>'; return; }
+      renderReviewResult(data);
+    })
+    .catch(err => { content.innerHTML = '<p style="color:#c0392b;">复盘失败: ' + err.message + '</p>'; });
+}
+
+// ── 下期预测 & 真实对比 ──
+const PREDICT_VARS = ["好友率", "入群率", "APP下载率", "开营回复率", "Day1到课率"];
+let lastPredict = null;
+
+function _predictInputs() {
+  const period = document.getElementById('predictPeriod').value.trim();
+  const name = document.getElementById('predictName').value.trim();
+  const metrics = {};
+  for (const v of PREDICT_VARS) metrics[v] = document.getElementById('predict_' + v).value;
+  return { period, name, metrics };
+}
+
+function predBox(title, val, color) {
+  return '<div style="flex:1;min-width:200px;background:#f8fafc;border:1px solid #e3eaf2;border-radius:10px;padding:16px;">' +
+    '<div style="font-size:13px;color:#666;margin-bottom:6px;">' + title + '</div>' +
+    '<div style="font-size:28px;font-weight:700;color:' + color + ';">' + val + '</div></div>';
+}
+
+function runPredict() {
+  const { period, name, metrics } = _predictInputs();
+  const grade = analysisResult ? (analysisResult.current_grade === '全年级' ? '' : analysisResult.current_grade) : '';
+  if (!period) { showError('请填写目标期次'); return; }
+  for (const v of PREDICT_VARS) {
+    if (metrics[v] === '' || metrics[v] == null) { showError('请完整填写 5 个过程指标（' + v + ' 为空）'); return; }
+  }
+  const status = document.getElementById('predictResult');
+  status.innerHTML = '<p style="color:#888;">预测中...</p>';
+  fetch('/predict', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ period, name, metrics, grade: grade, subject: currentSubject })
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) { status.innerHTML = '<p style="color:#c0392b;">' + d.error + '</p>'; return; }
+      lastPredict = d;
+      status.innerHTML =
+        '<div style="background:#fff7ed;border-left:4px solid #f59e0b;padding:10px 12px;border-radius:6px;margin-bottom:10px;">' +
+          '<span style="color:#b45309;font-weight:600;">⚠️ AI 预测值 · 仅供参考</span>' +
+          '<span style="color:#92400e;font-size:12px;"> 此结果由真实数据回归得出，但不计入训练数据，请勿当作真实转化率录回数据库。</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:16px;flex-wrap:wrap;">' +
+          predBox('预测最终转化率', d.predicted_final + '%', '#2d6aa0') +
+          predBox('预测 Day3直播间转化率', d.predicted_day3 + '%', '#10b981') +
+        '</div>' +
+        '<p style="font-size:12px;color:#999;margin-top:8px;">' +
+          (d.name ? ('基于「' + d.name + '」个人历史（' + (d.样本数 || '') + '期）回归测算。') : '基于团队整体历史回归测算。') +
+          '填好后点「保存这次预测」，等真实数据上传后再来对比。</p>';
+    })
+    .catch(err => status.innerHTML = '<p style="color:#c0392b;">预测失败: ' + err.message + '</p>');
+}
+
+function savePrediction() {
+  if (!lastPredict) { showError('请先点「预测下期转化率」'); return; }
+  fetch('/save-prediction', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      period: lastPredict.period,
+      name: lastPredict.name,
+      subject: (lastPredict.subject || currentSubject),
+      predicted_day3: lastPredict.predicted_day3,
+      predicted_final: lastPredict.predicted_final,
+      metrics: lastPredict.metrics
+    })
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        document.getElementById('predictResult').insertAdjacentHTML('beforeend',
+          '<p style="color:#16a34a;font-weight:600;margin-top:8px;">✅ 已保存「' + d.period + '」' + (d.name ? '（' + d.name + '）' : '（团队）') + ' 的预测，期次结束后可回来对比。</p>');
+        loadComparePeriods();
+      } else { showError(d.error || '保存失败'); }
+    })
+    .catch(err => showError('保存失败: ' + err.message));
+}
+
+function loadComparePeriods() {
+  fetch('/periods' + (currentSubject ? '?subject=' + encodeURIComponent(currentSubject) : ''))
+    .then(r => r.json())
+    .then(d => {
+      const sel = document.getElementById('comparePeriod');
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">-- 请选择 --</option>';
+      (d.periods || []).forEach(p => { sel.innerHTML += '<option value="' + p + '">' + p + ' 期</option>'; });
+      sel.value = cur;
+    })
+    .catch(() => {});
+}
+
+function cmpRow(label, pred, act, gap) {
+  const gapTxt = (gap >= 0 ? '+' : '') + gap + '%';
+  const gapCls = gap >= 0 ? 'positive' : 'negative';
+  return '<tr><td style="font-weight:600;">' + label + '</td>' +
+    '<td>' + pred + '%</td><td>' + act + '%</td>' +
+    '<td class="' + gapCls + '" style="font-weight:700;">' + gapTxt + '</td></tr>';
+}
+
+function runCompare() {
+  const period = document.getElementById('comparePeriod').value;
+  const name = document.getElementById('compareName').value;
+  if (!period) { showError('请选择要对比的期次'); return; }
+  const box = document.getElementById('compareResult');
+  box.innerHTML = '<p style="color:#888;">对比中...</p>';
+  fetch('/prediction-compare', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ period, name, subject: currentSubject })
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) { box.innerHTML = '<p style="color:#c0392b;">' + d.error + '</p>'; return; }
+      box.innerHTML = '<div style="overflow-x:auto;"><table class="rank" style="margin-top:6px;">' +
+        '<thead><tr><th>指标</th><th>预测值</th><th>真实值</th><th>偏差</th></tr></thead><tbody>' +
+        cmpRow('Day3直播间转化率', d.predicted_day3, d.actual_day3, d.gap_day3) +
+        cmpRow('最终转化率', d.predicted_final, d.actual_final, d.gap_final) +
+        '</tbody></table></div>' +
+        '<p style="font-size:12px;color:#999;margin-top:8px;">偏差 = 真实 − 预测。正=实际比预测好，负=没达到预期。</p>';
+    })
+    .catch(err => box.innerHTML = '<p style="color:#c0392b;">对比失败: ' + err.message + '</p>');
+}
+
+// ── 个人诊断 ──
+function runPersonalDiagnosis() {
+  const name = document.getElementById('nameSelect').value;
+  const period = document.getElementById('periodSelect').value;
+  if (!name) { showError('请先选择成员'); return; }
+  if (!period) { showError('请选择期次'); return; }
+  
+  const grade = analysisResult ? (analysisResult.current_grade === '全年级' ? '' : analysisResult.current_grade) : '';
+  const content = document.getElementById('personalContent');
+  content.innerHTML = '<p style="color:#888;padding:20px;">正在分析 ' + name + ' 的个人数据...</p>';
+  
+  fetch('/personal-suggestions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, period: period, grade: grade, subject: currentSubject })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { content.innerHTML = '<p style="color:#ff4d4f;">' + data.error + '</p>'; return; }
+      renderPersonalResult(data);
+    })
+    .catch(err => { content.innerHTML = '<p style="color:#ff4d4f;">请求失败: ' + err.message + '</p>'; });
+}
+
+function renderPersonalResult(data) {
+  const content = document.getElementById('personalContent');
+  
+  // 背景色
+  const convGap = (data.y_comparisons || []).find(c => c.variable === '最终转化率');
+  let bgClass = 'ok';
+  if (convGap && convGap.gap >= 1) bgClass = 'good';
+  else if (convGap && convGap.gap < -0.5) bgClass = 'weak';
+  
+  let html = '';
+  
+  // ── 总结 ──
+  html += '<div class="personal-summary ' + bgClass + '">';
+  html += '<strong>' + data.name + ' · ' + data.period + ' 期 诊断报告</strong>';
+  html += ' ｜ 同组对比：' + (data.others_names || []).join('、') + ' 等共 ' + data.others_count + ' 人';
+  if (data.grade && data.grade !== '全年级') html += ' ｜ ' + data.grade;
+  html += '<br>' + data.summary;
+  html += '</div>';
+  
+  // ── 转化率对比 ──
+  html += '<h3 style="margin-bottom:10px;">转化率对比</h3>';
+  (data.y_comparisons || []).forEach(c => {
+    const g = c.gap;
+    const cls = g >= 0 ? 'positive' : 'negative';
+    html += '<div class="cmp-row">';
+    html += '<span class="cmp-label">' + c.label + '</span>';
+    html += '<div class="cmp-bar-wrap">';
+    html += '<span style="font-size:11px;color:#888;width:35px;">你</span>';
+    html += '<div class="cmp-bar personal" style="width:' + Math.max(c.personal, 3) + '%;">' + c.personal + '%</div>';
+    html += '<span style="font-size:11px;color:#888;width:48px;">同组</span>';
+    html += '<div class="cmp-bar benchmark" style="width:' + Math.max(c.benchmark_mean, 3) + '%;">' + c.benchmark_mean + '%</div>';
+    html += '</div>';
+    html += '<span class="cmp-gap ' + cls + '">' + (g >= 0 ? '+' : '') + g + '%</span>';
+    html += '</div>';
+  });
+  
+  // ── 过程指标对比 ──
+  html += '<h3 style="margin-top:20px;margin-bottom:10px;">各环节 vs 同组平均</h3>';
+  html += '<p style="font-size:12px;color:#666;margin-bottom:10px;font-weight:500;">🔵 蓝色 = 你的数据 ｜ 🟠 橙色 = 同组平均 ｜ 🟢 绿色 = 同组里做得好的水平</p>';
+  (data.comparisons || []).forEach(c => {
+    const g = c.gap;
+    let cls = 'neutral';
+    if (g >= 2) cls = 'positive';
+    else if (g < -2) cls = 'negative';
+    const isUncontrollable = c.controllable === false;
+
+    html += '<div class="cmp-row">';
+    html += '<span class="cmp-label">' + c.label + (isUncontrollable ? ' <span style="font-size:10px;color:#999;border:1px solid #ccc;border-radius:3px;padding:0 3px;">不可控</span>' : '') + '</span>';
+    html += '<span style="font-size:11px;min-width:36px;text-align:center;font-weight:700;color:#2563eb;">' + c.personal + '%</span>';
+    html += '<div class="cmp-bar-wrap">';
+    html += '<div class="cmp-bar personal" style="width:' + Math.max(c.personal, 3) + '%;"></div>';
+    html += '<div class="cmp-bar benchmark" style="width:' + Math.max(c.benchmark_mean, 3) + '%;">' + c.benchmark_mean + '%</div>';
+    html += '<div class="cmp-bar top" style="width:' + Math.max(c.benchmark_top25, 3) + '%;">' + c.benchmark_top25 + '%</div>';
+    html += '</div>';
+    if (isUncontrollable) {
+      html += '<span class="cmp-gap" style="color:#999;">不可控</span>';
+    } else {
+      html += '<span class="cmp-gap ' + cls + '">' + (g >= 0 ? '+' : '') + g + '%</span>';
+    }
+    html += '</div>';
+  });
+  
+  // ── 行动建议 ──
+  if (data.advice && data.advice.length > 0) {
+    html += '<h3 style="margin-top:20px;margin-bottom:10px;">给你的建议</h3>';
+    data.advice.forEach(a => {
+      html += '<div class="advice-card ' + a.type + '">';
+      html += '<strong>' + a.title + '</strong><br>' + a.detail;
+      html += '</div>';
+    });
+  }
+  
+  html += '<p style="font-size:12px;color:#aaa;margin-top:16px;">💡 先追平同组平均，再努力超过同组前25%</p>';
+  content.innerHTML = html;
+}
+
+function renderReviewResult(data) {
+  const content = document.getElementById('reviewContent');
+  let html = '';
+
+  // ── 顶部小结 ──
+  const convCls = data.conv_gap >= 0 ? 'positive' : 'negative';
+  const pLabel = formatPeriod(data.period);
+  const prevLabel = formatPeriod(data.prev_period || '');
+  html += '<div class="personal-summary ' + (data.conv_gap >= 0 ? '' : 'warn') + '">';
+  if (data.is_personal) {
+    html += '<strong>' + data.person_name + ' 个人复盘</strong> ｜ ' + pLabel + '（' + data.period + '） vs 上一期 ' + prevLabel + '（' + data.prev_period + '）';
+  } else {
+    html += '<strong>' + pLabel + ' 期复盘</strong> ｜ 团队 ' + data.team_size + ' 人：' + (data.people || []).join('、') + ' ｜ 对比上期：' + prevLabel;
+  }
+  html += '<br>' + data.conv_summary;
+  html += '</div>';
+
+  // ── 逐项复盘表 ──
+  html += '<h3 style="margin:18px 0 6px;">这期每个环节 vs 上一期（' + prevLabel + '）</h3>';
+  html += '<p style="font-size:12px;color:#888;margin-bottom:8px;">「上期」= 紧挨着的上一期（' + prevLabel + '）' + (data.is_personal ? '你个人的数据' : '的团队均值') + '。变红 = 比上期退步（损失转化率），变绿 = 比上期进步。</p>';
+  html += '<table class="rank" style="margin-top:8px;">';
+  html += '<thead><tr><th>环节</th><th>本期</th><th>上期</th><th>变化</th><th>对转化率影响</th></tr></thead><tbody>';
+  (data.review_items || []).forEach(r => {
+    const gapCls = r.gap < 0 ? 'negative' : (r.gap > 0 ? 'positive' : '');
+    const gapTxt = (r.gap >= 0 ? '+' : '') + r.gap;
+    const isUncontrollable = r.controllable === false;
+    html += '<tr>';
+    html += '<td style="font-weight:600;">' + r.label + (isUncontrollable ? ' <span style="font-size:10px;color:#999;border:1px solid #ccc;border-radius:3px;padding:0 3px;white-space:nowrap;">不可控</span>' : '') + '</td>';
+    html += '<td>' + r.period_value + '%</td>';
+    html += '<td>' + r.baseline_value + '%</td>';
+    html += '<td class="' + (isUncontrollable ? '' : gapCls) + '" style="font-weight:600;' + (isUncontrollable ? 'color:#999;' : '') + '">' + (isUncontrollable ? '—' : gapTxt) + '</td>';
+    // 结果指标（Day3/最终转化率）：显示"直接变化"而非"估算影响"
+    if (r._is_result) {
+      const ciTxt = (r.conv_impact >= 0 ? '+' : '') + r.conv_impact.toFixed(2);
+      html += '<td class="' + (r.conv_impact < 0 ? 'negative' : 'positive') + '" style="font-weight:600;">' + ciTxt + '% <span style="font-size:10px;color:#999;font-weight:400;">(直接变化)</span></td>';
+    } else if (isUncontrollable) {
+      html += '<td style="color:#999;font-weight:600;">不可控</td>';
+    } else {
+      const ciTxt = (r.conv_impact >= 0 ? '+' : '') + r.conv_impact.toFixed(2);
+      html += '<td class="' + (r.conv_impact < 0 ? 'negative' : 'positive') + '" style="font-weight:600;">' + ciTxt + '%</td>';
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+
+  // ── AI 复盘结论（A方案：多元化建议，调用失败则不显示、退回下面静态 advice）──
+  if (data.ai_conclusion && (data.ai_conclusion.summary || (data.ai_conclusion.actions && data.ai_conclusion.actions.length))) {
+    html += '<h3 style="margin:18px 0 10px;">🤖 AI 复盘结论 <span style="font-size:12px;font-weight:400;color:#999;">（AI参考，可手动调整）</span></h3>';
+    if (data.ai_conclusion.summary) {
+      html += '<div style="padding:12px 16px;margin-bottom:10px;background:linear-gradient(135deg,#f5f0ff,#eef4ff);border:1px solid #d9c8f5;border-radius:8px;font-size:13px;line-height:1.8;color:#333;">' + data.ai_conclusion.summary + '</div>';
+    }
+    if (data.ai_conclusion.actions && data.ai_conclusion.actions.length) {
+      data.ai_conclusion.actions.forEach(function (act, i) {
+        html += '<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;margin-bottom:8px;background:#faf6ff;border-left:3px solid #7c4dff;border-radius:6px;font-size:13px;line-height:1.7;color:#333;">';
+        html += '<span style="color:#7c4dff;font-weight:700;flex-shrink:0;">' + (i + 1) + '.</span>';
+        html += '<span>' + act + '</span>';
+        html += '</div>';
+      });
+    }
+    if (data.ai_conclusion.new_directions && data.ai_conclusion.new_directions.length) {
+      html += '<div style="margin-top:14px;padding:12px 14px;background:#fffdf5;border:1px dashed #e0c878;border-radius:8px;">';
+      html += '<div style="font-size:12px;font-weight:700;color:#a07a1e;margin-bottom:8px;">💡 新思考方向（在团队已有方案上延伸，可参考）</div>';
+      data.ai_conclusion.new_directions.forEach(function (nd, i) {
+        html += '<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;font-size:13px;line-height:1.7;color:#5a4a1e;">';
+        html += '<span style="color:#a07a1e;font-weight:700;flex-shrink:0;">↳</span>';
+        html += '<span>' + nd + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+  }
+
+  // ── 诊断结论（为什么）──
+  if (data.advice && data.advice.length > 0) {
+    html += '<h3 style="margin:18px 0 10px;">诊断结论（为什么）</h3>';
+    data.advice.forEach(a => {
+      html += '<div class="advice-card ' + a.type + '">';
+      html += '<strong>' + a.title + '</strong><br>' + a.detail;
+      html += '</div>';
+    });
+  }
+
+  // ── 下期行动清单（具体可执行）──
+  if (data.action_checklist && data.action_checklist.length > 0) {
+    html += '<h3 style="margin:22px 0 8px;">📋 下期行动清单</h3>';
+    html += '<p style="font-size:12px;color:#888;margin-bottom:10px;">按"这期比上期少了多少转化"排序，只列最该补的 ' + data.action_checklist.length + ' 项。照着做，下期就能把丢的分捡回来。</p>';
+    data.action_checklist.forEach((a, i) => {
+      html += '<div style="display:flex;gap:12px;align-items:flex-start;padding:14px 16px;margin-bottom:10px;background:#f8fafc;border:1px solid #e3eaf2;border-radius:8px;">';
+      html += '<div style="font-size:20px;line-height:1.3;color:#2d6aa0;">☐</div>';
+      html += '<div style="flex:1;">';
+      html += '<div style="font-weight:700;color:#1f3a5f;margin-bottom:4px;">第' + (i + 1) + '项：补齐「' + a.variable + '」</div>';
+      html += '<div style="font-size:13px;color:#555;margin-bottom:6px;">这期 <b>' + a.current + '%</b> → 目标追平上期 <b>' + a.target + '%</b>（差 ' + Math.abs(a.gap) + ' 个点，约损失 ' + Math.abs(a.conv_loss).toFixed(2) + '% 转化）</div>';
+      html += renderAction(a.action);
+      html += '</div></div>';
+    });
+  } else {
+    html += '<h3 style="margin:22px 0 8px;">📋 下期行动清单</h3>';
+    html += '<p style="font-size:13px;color:#52c41a;padding:10px 0;">这期各项都持平或优于上期，没有需要专门补救的短板，保持当前动作即可。</p>';
+  }
+
+  content.innerHTML = html;
+}
+
+// ── 年级切换 ──
+function switchGrade(silent) {
+  const grade = document.getElementById('gradeFilter').value;
+  const status = document.getElementById('statusMsg');
+  const subj = currentSubject;
+  if (!silent) { status.textContent = '切换中，重新分析中...'; status.className = 'status loading'; }
+
+  fetch('/analyze-grade', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ grade: grade, subject: subj })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showError(data.error); return; }
+      if (!silent) {
+        const gradeText = data.current_grade === '全年级' ? '全部年级' : data.current_grade;
+        status.textContent = '✅ 当前：' + gradeText + (subj ? '（' + subj + '）' : '') + ' | 共 ' + data.rows + ' 条数据，' + data.batches + ' 期';
+        status.className = 'status success';
+      }
+      if (data.db_stats) updateDbBar(data.db_stats);
+      analysisResult = data;
+      renderAll();
+      loadRecords();
+    })
+    .catch(err => showError('切换失败: ' + err.message));
+}
+// ── 数据管理：查看 + 修改（访问口令锁）──
+let editingId = null;
+let editUnlocked = false;   // 是否已用口令解锁，解锁后才能修改/删除
+let editPass = '';          // 解锁后的口令，随修改/删除请求一起发往后端校验
+let passConfigured = false; // 后端是否已设置访问口令
+
+function loadRecords() {
+  if (!editUnlocked) return; // 未解锁不拉取/渲染任何数据
+  const subj = currentSubject;
+  const grade = document.getElementById('gradeFilter').value;
+  fetch('/api/records?subject=' + encodeURIComponent(subj) + '&grade=' + encodeURIComponent(grade), {
+    headers: { 'X-Edit-Pass': editPass }
+  })
+    .then(r => r.json())
+    .then(data => {
+      const body = document.getElementById('recordBody');
+      if (!data.records || data.records.length === 0) {
+        body.innerHTML = '<tr><td colspan="13" style="padding:16px;text-align:center;color:#999;">暂无数据，先去上传吧</td></tr>';
+        return;
+      }
+      body.innerHTML = data.records.map(rowHtml).join('');
+    })
+    .catch(err => {
+      document.getElementById('manageMsg').textContent = '加载失败：' + err.message;
+    });
+}
+
+function rowHtml(rec) {
+  const cell = v => v == null ? '<span style="color:#bbb;">—</span>' : (parseFloat(v)).toFixed(1) + '%';
+  if (editingId === rec.id && editUnlocked) {
+    const inp = (k, v) => '<input class="rec-edit" data-k="' + k + '" value="' + (v == null ? '' : v) + '" style="width:72px;padding:3px;">';
+    const sel = (k, v, opts) => '<select class="rec-edit" data-k="' + k + '" style="width:84px;padding:2px;">' + opts.map(o => '<option' + (String(o) === String(v) ? ' selected' : '') + '>' + o + '</option>').join('') + '</select>';
+    const SUBJECTS = ['数学', '语文', '英语'];
+    const GRADES = ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级'];
+    return '<tr data-id="' + rec.id + '">'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + rec.period + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + inp('name', rec.name) + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + sel('subject', rec.subject, SUBJECTS) + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + sel('grade', rec.grade, GRADES) + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + inp('friend_rate', rec.friend_rate) + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + inp('group_rate', rec.group_rate) + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + inp('app_rate', rec.app_rate) + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + inp('reply_rate', rec.reply_rate) + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + inp('day1_rate', rec.day1_rate) + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + inp('day3_rate', rec.day3_rate) + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;">' + inp('conversion_rate', rec.conversion_rate) + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;color:#999;">' + rec.source + '</td>'
+      + '<td style="padding:6px;border-bottom:1px solid #eee;"><button onclick="saveRecord(' + rec.id + ')">保存</button> <button onclick="cancelEdit()">取消</button></td>'
+      + '</tr>';
+  }
+  let ops;
+  if (editUnlocked) {
+    ops = '<button onclick="startEdit(' + rec.id + ')">修改</button> <button onclick="deleteRecord(' + rec.id + ')" style="color:#c0392b;border-color:#e8b4b4;">删除</button>';
+  } else {
+    ops = '<span style="color:#bbb;">🔒 已锁</span>';
+  }
+  return '<tr data-id="' + rec.id + '">'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + rec.period + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + rec.name + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + rec.subject + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + rec.grade + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + cell(rec.friend_rate) + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + cell(rec.group_rate) + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + cell(rec.app_rate) + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + cell(rec.reply_rate) + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + cell(rec.day1_rate) + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + cell(rec.day3_rate) + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + cell(rec.conversion_rate) + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;color:#999;">' + rec.source + '</td>'
+    + '<td style="padding:6px;border-bottom:1px solid #eee;">' + ops + '</td>'
+    + '</tr>';
+}
+
+function startEdit(id) {
+  if (!editUnlocked) { document.getElementById('manageMsg').textContent = '🔒 请先解锁再修改'; return; }
+  editingId = id; loadRecords();
+}
+function cancelEdit() { editingId = null; loadRecords(); }
+
+function deleteRecord(id) {
+  if (!editUnlocked) { document.getElementById('manageMsg').textContent = '🔒 请先解锁再删除'; return; }
+  if (!confirm('确定删除这条数据吗？删除后不可恢复。')) return;
+  fetch('/api/record-delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: id, passphrase: editPass })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { document.getElementById('manageMsg').textContent = '❌ ' + data.error; return; }
+      document.getElementById('manageMsg').textContent = '🗑️ 已删除';
+      loadRecords();
+      if (analysisResult) switchGrade(true);
+    })
+    .catch(err => { document.getElementById('manageMsg').textContent = '删除失败：' + err.message; });
+}
+
+function saveRecord(id) {
+  if (!editUnlocked) { document.getElementById('manageMsg').textContent = '🔒 请先解锁再保存'; return; }
+  const row = document.querySelector('tr[data-id="' + id + '"]');
+  const inputs = row.querySelectorAll('.rec-edit');
+  const payload = { id: id, passphrase: editPass };
+  inputs.forEach(function (inp) { payload[inp.dataset.k] = inp.value; });
+  fetch('/api/record-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { document.getElementById('manageMsg').textContent = '❌ ' + data.error; return; }
+      editingId = null;
+      document.getElementById('manageMsg').textContent = '✅ 已保存';
+      loadRecords();
+      if (analysisResult) switchGrade(true);
+    })
+    .catch(err => { document.getElementById('manageMsg').textContent = '保存失败：' + err.message; });
+}
+
+// ── 访问口令锁 ──
+function loadLockStatus() {
+  fetch('/api/edit-lock-status').then(r => r.json()).then(d => {
+    passConfigured = !!d.configured;
+    renderLock();
+  });
+}
+
+function renderLock() {
+  const box = document.getElementById('editLock');
+  // 未解锁时整个数据表隐藏，输入口令后才显示
+  document.getElementById('recordTableWrap').style.display = editUnlocked ? '' : 'none';
+  if (editUnlocked) {
+    box.style.background = '#eafaf0';
+    box.style.borderColor = '#b6e3c6';
+    box.style.color = '#1f7a48';
+    box.innerHTML = '✅ 已解锁，数据已显示，可以查看 / 修改 / 删除。<br>'
+      + ' <a href="javascript:;" onclick="lockNow()" style="margin-left:8px;">🔒 重新锁定（隐藏数据）</a>'
+      + ' <a href="javascript:;" onclick="showChangePass()" style="margin-left:8px;">✏️ 修改口令</a>';
+    return;
+  }
+  if (!passConfigured) {
+    box.innerHTML = '🔑 <b>数据已隐藏</b>。首次使用请设置一个访问口令（至少 4 位），设置后数据才会显示。<br>'
+      + '<input id="passInput" type="password" placeholder="设置访问口令" style="padding:6px;margin-top:8px;width:200px;"> '
+      + '<button onclick="setPassphrase()">设置并查看</button>';
+  } else {
+    box.innerHTML = '🔒 <b>数据已隐藏</b>，请输入你的访问口令解锁后才会显示。<br>'
+      + '<input id="passInput" type="password" placeholder="访问口令" style="padding:6px;margin-top:8px;width:200px;"> '
+      + '<button onclick="unlock()">解锁查看</button>';
+  }
+}
+
+function setPassphrase() {
+  const v = document.getElementById('passInput').value;
+  fetch('/api/edit-passphrase', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new: v })
+  }).then(r => r.json()).then(d => {
+    if (d.error) { alert(d.error); return; }
+    passConfigured = true;
+    editPass = v; editUnlocked = true;
+    renderLock(); loadRecords();
+  });
+}
+
+function unlock() {
+  const v = document.getElementById('passInput').value;
+  fetch('/api/edit-unlock', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ passphrase: v })
+  }).then(r => r.json()).then(d => {
+    if (d.error) { alert(d.error); return; }
+    editPass = v; editUnlocked = true;
+    renderLock(); loadRecords();
+  });
+}
+
+function lockNow() {
+  editUnlocked = false; editPass = ''; editingId = null;
+  document.getElementById('recordBody').innerHTML = '';
+  renderLock();
+}
+
+function showChangePass() {
+  const cur = prompt('请输入当前口令：');
+  if (cur === null) return;
+  const nw = prompt('请输入新口令（至少 4 位）：');
+  if (nw === null) return;
+  fetch('/api/edit-passphrase', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current: cur, new: nw })
+  }).then(r => r.json()).then(d => {
+    if (d.error) { alert(d.error); return; }
+    editPass = nw; alert('✅ 口令已更新');
+  });
+}
+
+loadLockStatus();
+
+</script>
+</body>
+</html>

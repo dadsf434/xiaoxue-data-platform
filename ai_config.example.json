@@ -1,0 +1,7 @@
+{
+  "deepseek_key": "YOUR_DEEPSEEK_KEY",
+  "base_url": "https://api.deepseek.com",
+  "model": "deepseek-chat",
+  "enabled": false,
+  "timeout": 20
+}

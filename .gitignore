@@ -1,0 +1,34 @@
+# 依赖缓存
+__pycache__/
+*.pyc
+
+# 日志
+*.log
+server*.log
+_server*
+
+# 真实数据库（开源不含真实业务数据）
+*.db
+
+# 本地配置（含口令哈希 / API key，禁止上传）
+config.json
+ai_config.json
+uploads/
+
+# 临时 / 测试脚本
+*.bak
+test_*.py
+_t*.py
+t_*.py
+t_*.csv
+check*.py
+clean*.py
+fix*.py
+verify*.py
+gen_slides.py
+make_card.py
+
+# 其他调试残留
+test_upload.csv
+start_ai_server.bat
+slides.json
