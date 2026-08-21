@@ -62,7 +62,6 @@ platform/
 ├── app.py                 # Flask 后端：路由 + 分析逻辑
 ├── templates/index.html   # 前端页面
 ├── data.db                # SQLite 数据库（运行时自动生成空库，开源版不含真实业务数据）
-├── materials/             # 物料（思维卡图、主讲资质图等，演示用占位素材）
 ├── config.json            # 编辑口令哈希（已被 .gitignore 排除，首次运行自动初始化）
 ├── ai_config.json         # DeepSeek 配置（已被 .gitignore 排除，见下方配置）
 ├── seed_demo_data.py      # 演示数据种子脚本（生成虚构数据，便于本地预览）
