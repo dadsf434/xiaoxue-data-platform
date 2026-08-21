@@ -15,6 +15,10 @@ config.json
 ai_config.json
 uploads/
 
+# 本地演示录屏（可能含真实数据截图，仅本地预览，禁止上传）
+网站演示.gif
+*.gif
+
 # 临时 / 测试脚本
 *.bak
 test_*.py

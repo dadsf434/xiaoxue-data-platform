@@ -61,13 +61,14 @@ Python · Flask · SQLite · pandas · numpy · statsmodels · DeepSeek API · �
 platform/
 ├── app.py                 # Flask 后端：路由 + 分析逻辑
 ├── templates/index.html   # 前端页面
-├── data.db                # SQLite 数据库（开源版不含真实业务数据，需自行导入）
-├── materials/             # 物料（思维卡图、主讲资质图等）
-├── config.json            # 编辑口令哈希（已被 .gitignore 排除）
+├── data.db                # SQLite 数据库（运行时自动生成空库，开源版不含真实业务数据）
+├── materials/             # 物料（思维卡图、主讲资质图等，演示用占位素材）
+├── config.json            # 编辑口令哈希（已被 .gitignore 排除，首次运行自动初始化）
 ├── ai_config.json         # DeepSeek 配置（已被 .gitignore 排除，见下方配置）
+├── seed_demo_data.py      # 演示数据种子脚本（生成虚构数据，便于本地预览）
 ├── requirements.txt
 ├── .gitignore
-└── 网站演示.gif            # 功能演示
+└── 网站演示.gif            # 功能演示录屏（仅本地预览，已被 .gitignore 排除）
 ```
 
 ---
@@ -86,6 +87,10 @@ cp ai_config.example.json ai_config.json
 # 3. 启动
 python app.py
 #    默认监听 http://127.0.0.1:5000
+
+# 4.（可选）填充演示数据，便于直接看到各模块效果
+#    插入的是完全虚构的演示记录（演示甲/乙/丙…），不含任何真实业务数据
+python seed_demo_data.py
 ```
 
 ---
@@ -102,7 +107,13 @@ python app.py
 
 ## 演示
 
-![功能演示](网站演示.gif)
+仓库不含录屏文件（避免泄露真实数据截图）。本地预览方式：
+
+1. 按「快速开始」安装依赖并启动 `python app.py`；
+2. 运行 `python seed_demo_data.py` 填充虚构演示数据；
+3. 浏览器打开 http://127.0.0.1:5000 ，即可看到个人环比复盘、个人诊断、团队复盘、转化率预测等模块效果。
+
+如需对外展示录屏，请用本地真实运行环境自行录制（建议先跑种子脚本填充数据）。
 
 ---
 
