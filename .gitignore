@@ -1,3 +1,4 @@
+gitignore
 # 依赖缓存
 __pycache__/
 *.pyc
@@ -15,9 +16,9 @@ config.json
 ai_config.json
 uploads/
 
-# 本地演示录屏（可能含真实数据截图，仅本地预览，禁止上传）
-网站演示.gif
+# 演示录屏（网站演示.gif 为虚构演示数据版本，随仓库发布；其余 gif 为本地录屏，不上传）
 *.gif
+!网站演示.gif
 
 # 临时 / 测试脚本
 *.bak
