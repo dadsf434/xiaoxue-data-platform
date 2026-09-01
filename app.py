@@ -1,5 +1,5 @@
 """
-社群运营数据分析平台 - Flask 后端
+过程数据分析平台 - Flask 后端
 功能：上传Excel/截图 → 自动存数据库 → 回归分析 → 返回结果JSON
 数据库：SQLite，所有上传数据自动累积，分析基于全量历史数据
 """
@@ -2752,7 +2752,7 @@ def prediction_compare_route():
 
 if __name__ == "__main__":
     print("\n" + "=" * 60)
-    print("  社群运营数据分析平台")
+    print("  过程数据分析平台")
     print("  浏览器访问: http://localhost:5000")
     print("  支持: Excel/CSV上传 / 手动录入数据")
     print("=" * 60 + "\n")
